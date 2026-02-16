@@ -219,10 +219,10 @@ function startGame(grade) {
     ui.startScreen.classList.add('hidden');
     ui.hud.classList.remove('hidden');
 
-    // Show mobile controls if on mobile device
-    if (window.innerWidth < 850) {
-        ui.mobileControls.classList.remove('hidden');
-    }
+    // Mobile controls removed in favor of swipe gestures
+    // if (window.innerWidth < 850) {
+    //    ui.mobileControls.classList.remove('hidden');
+    // }
 
     startLevel(state.level);
 
