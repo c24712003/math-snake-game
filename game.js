@@ -121,6 +121,16 @@ const ui = {
 
 // --- Initialization ---
 function init() {
+    // Responsive Grid Configuration for Mobile
+    if (window.innerWidth < 850) {
+        // Less columns = Larger cells on screen
+        CONFIG.cols = 10;
+        CONFIG.rows = 15;
+    } else {
+        CONFIG.cols = 20;
+        CONFIG.rows = 15;
+    }
+
     canvas.width = CONFIG.cols * CONFIG.gridSize;
     canvas.height = CONFIG.rows * CONFIG.gridSize;
 
