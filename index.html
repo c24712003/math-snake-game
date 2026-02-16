@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Snake Challenge</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Varela Round for rounded text, Mochiy Pop One for cute, chubby titles -->
+    <link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Varela+Round&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+
+    <div id="game-container">
+        <!-- Start Screen -->
+        <div id="start-screen" class="overlay active">
+            <h1 class="title">貪食蛇大冒險 <span class="highlight">✨</span></h1>
+            <p class="subtitle">一起吃數字、變聰明！ 🍎</p>
+
+            <div class="grade-selection">
+                <h3>你要挑戰幾年級？</h3>
+                <div class="buttons">
+                    <button class="btn grade-btn" data-grade="12">1-2 年級 (加減法)</button>
+                    <button class="btn grade-btn" data-grade="3">3 年級 (加減乘)</button>
+                    <button class="btn grade-btn" data-grade="4">4 年級 (加減乘除)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- HUD -->
+        <div id="hud" class="hidden">
+            <div class="hud-item">
+                <span class="label">第幾關</span>
+                <span id="level-value" class="value">1</span>
+            </div>
+            <div class="hud-item large">
+                <span class="label">目標數字</span>
+                <span id="target-value" class="value">20</span>
+            </div>
+            <div class="hud-item large highlight">
+                <span class="label">現在多少</span>
+                <span id="current-value" class="value">0</span>
+            </div>
+            <div class="hud-item">
+                <span class="label">愛心</span>
+                <span id="lives-value" class="value">❤❤❤</span>
+            </div>
+            <div class="hud-item">
+                <span class="label">得分</span>
+                <span id="score-value" class="value">0</span>
+            </div>
+            <div class="hud-item" id="mute-btn" style="cursor: pointer;">
+                <span class="label">聲音</span>
+                <span id="mute-icon" class="value">🔊</span>
+            </div>
+        </div>
+
+        <!-- Game Canvas -->
+        <!-- Game Area (Canvas + Grid) -->
+        <div id="game-area">
+            <div class="bg-grid"></div>
+            <canvas id="game-canvas"></canvas>
+        </div>
+
+        <!-- Message Overlay (Level Complete / Game Over) -->
+        <div id="message-overlay" class="overlay hidden">
+            <div class="message-content">
+                <h2 id="message-title">過關啦！🎉</h2>
+                <div id="message-body">你好棒喔！</div>
+                <button id="next-level-btn" class="btn">前進下一關 🚀</button>
+                <button id="restart-btn" class="btn hidden">再玩一次 🎮</button>
+            </div>
+        </div>
+
+        <!-- Mobile Controls -->
+        <div id="mobile-controls" class="hidden">
+            <button class="d-pad-btn" id="btn-up">⬆️</button>
+            <div class="d-pad-row">
+                <button class="d-pad-btn" id="btn-left">⬅️</button>
+                <button class="d-pad-btn" id="btn-right">➡️</button>
+            </div>
+            <button class="d-pad-btn" id="btn-down">⬇️</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+
+</html>
