@@ -217,14 +217,27 @@ function init() {
     }
 
     // Resume Audio Context on first interaction (Mobile Requirement)
+    // Resume Audio Context on first interaction (Mobile Requirement)
     const resumeAudio = () => {
         const ctx = getAudioContext();
-        if (ctx && ctx.state === 'suspended') {
+        if (!ctx) return;
+
+        // iOS/Mobile Unlock Hack: Play a silent buffer
+        // Just calling ctx.resume() is sometimes not enough on strict browsers
+        const buffer = ctx.createBuffer(1, 1, 22050);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(0);
+
+        if (ctx.state === 'suspended') {
             ctx.resume();
         }
     };
+    // Bind to multiple interaction types to catch the earliest possible unlock
     document.addEventListener('click', resumeAudio, { once: true });
     document.addEventListener('touchstart', resumeAudio, { once: true });
+    document.addEventListener('keydown', resumeAudio, { once: true });
 
     // UI Event Listeners
     document.querySelectorAll('.grade-btn').forEach(btn => {
