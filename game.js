@@ -164,6 +164,13 @@ function init() {
             CONFIG.gridSize = 40;
         }
 
+        // Reset snake to center whenever grid changes to avoid OutOfBounds
+        state.snake = [
+            { x: Math.floor(CONFIG.cols / 2), y: Math.floor(CONFIG.rows / 2) },
+            { x: Math.floor(CONFIG.cols / 2) - 1, y: Math.floor(CONFIG.rows / 2) },
+            { x: Math.floor(CONFIG.cols / 2) - 2, y: Math.floor(CONFIG.rows / 2) }
+        ];
+
         canvas.width = CONFIG.cols * CONFIG.gridSize;
         canvas.height = CONFIG.rows * CONFIG.gridSize;
 
