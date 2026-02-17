@@ -195,9 +195,19 @@ function init() {
         window.visualViewport.addEventListener('resize', onResize);
     }
 
+    // Resume Audio Context on first interaction (Mobile Requirement)
+    const resumeAudio = () => {
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+    };
+    document.addEventListener('click', resumeAudio, { once: true });
+    document.addEventListener('touchstart', resumeAudio, { once: true });
+
     // UI Event Listeners
     document.querySelectorAll('.grade-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
+            resumeAudio(); // Ensure resume on start
             startGame(e.target.dataset.grade);
         });
     });
@@ -208,6 +218,7 @@ function init() {
     document.getElementById('mute-btn').addEventListener('click', () => {
         state.isMuted = !state.isMuted;
         document.getElementById('mute-icon').textContent = state.isMuted ? '🔇' : '🔊';
+        if (!state.isMuted) resumeAudio();
     });
 
     // Input Listeners
