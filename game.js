@@ -302,7 +302,10 @@ function startGame(grade) {
     ui.startScreen.classList.add('hidden');
     ui.hud.classList.remove('hidden');
 
+    state.lastUpdate = 0; // Reset timer to prevent instant jump
+
     // Mobile controls removed in favor of swipe gestures
+
     // if (window.innerWidth < 850) {
     //    ui.mobileControls.classList.remove('hidden');
     // }
@@ -722,6 +725,12 @@ function drawRoundedRect(x, y, w, h, r) {
 
 function gameLoop(timestamp) {
     if (!state.isRunning) return;
+
+    // Initialize timestamp on first frame
+    if (state.lastUpdate === 0) {
+        state.lastUpdate = timestamp;
+    }
+
     update(timestamp);
     updateParticles(); // Add particle update
     draw();
