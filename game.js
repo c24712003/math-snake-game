@@ -108,10 +108,12 @@ function generateSound(freq, duration, type = 'sine') {
 // Pre-generate Sounds
 function initAudio() {
     try {
-        sounds.eat = new Audio(generateSound(880, 0.1, 'sine')); // High beep
-        sounds.lose = new Audio(generateSound(150, 0.5, 'sawtooth')); // Low buzz
-        sounds.levelComplete = new Audio(generateSound(500, 0.3, 'square')); // Medium chime
-        sounds.win = new Audio(generateSound(600, 0.4, 'sine'));
+        // Softer sounds using Sine and Triangle waves (no Square/Sawtooth)
+        sounds.eat = new Audio(generateSound(660, 0.08, 'sine')); // Softer, shorter beep
+        sounds.lose = new Audio(generateSound(120, 0.4, 'sine')); // Low thud instead of buzz
+        sounds.levelComplete = new Audio(generateSound(523.25, 0.4, 'sine')); // C5 (Do) - Pleasant chime
+        sounds.win = new Audio(generateSound(783.99, 0.5, 'sine')); // G5 (So) - Happy but round
+
 
         // Optional: Pre-load
         Object.values(sounds).forEach(s => {
