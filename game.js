@@ -48,7 +48,8 @@ const sounds = {
 };
 
 // Helper: Generate WAV Data URI
-function generateSound(freq, duration, type = 'sine') {
+// Helper: Generate WAV Data URI with Envelope and Frequency Slide
+function generateSound(startFreq, duration, type = 'sine', endFreq = null) {
     const sampleRate = 44100;
     const numSamples = duration * sampleRate;
     const buffer = new ArrayBuffer(44 + numSamples * 2);
@@ -78,26 +79,46 @@ function generateSound(freq, duration, type = 'sine') {
     view.setUint32(40, numSamples * 2, true);
 
     // Write PCM samples
-    const volume = 0.3;
+    const volume = 0.25; // Slightly lower master volume
+    let phase = 0;
+
     for (let i = 0; i < numSamples; i++) {
         const t = i / sampleRate;
-        let sample = 0;
 
-        // Simple waveform generation
-        if (type === 'square') {
-            sample = Math.sin(2 * Math.PI * freq * t) > 0 ? 1 : -1;
-        } else if (type === 'sawtooth') {
-            sample = 2 * (t * freq - Math.floor(t * freq + 0.5));
-        } else {
-            // Sine
-            sample = Math.sin(2 * Math.PI * freq * t);
+        // Frequency Sweep (Glide)
+        let currentFreq = startFreq;
+        if (endFreq !== null) {
+            // Linear frequency slide
+            currentFreq = startFreq + (endFreq - startFreq) * (i / numSamples);
         }
 
-        // Apply tiny envelope to prevent popping
-        if (i < 1000) sample *= (i / 1000);
-        if (i > numSamples - 1000) sample *= ((numSamples - i) / 1000);
+        phase += (2 * Math.PI * currentFreq) / sampleRate;
+
+        let sample = Math.sin(phase);
+
+        // Exponential Decay Envelope (Percussive/Pluck)
+        // Attack: Very fast (0.01s)
+        // Decay: Exponential fade out
+        const attackTime = 0.005;
+        let envelope = 1.0;
+
+        if (t < attackTime) {
+            envelope = t / attackTime;
+        } else {
+            // Exponential decay from 1.0 down to almost 0
+            // Formula: e^(-k * t)
+            envelope = Math.exp(-5 * (t - attackTime) / duration);
+        }
+
+        // Apply Envelope
+        sample *= envelope;
 
         sample *= volume;
+
+        // Soft clipping limiter
+        if (sample > 0.8) sample = 0.8;
+        if (sample < -0.8) sample = -0.8;
+
         view.setInt16(44 + i * 2, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
     }
 
@@ -108,11 +129,18 @@ function generateSound(freq, duration, type = 'sine') {
 // Pre-generate Sounds
 function initAudio() {
     try {
-        // Softer sounds using Sine and Triangle waves (no Square/Sawtooth)
-        sounds.eat = new Audio(generateSound(660, 0.08, 'sine')); // Softer, shorter beep
-        sounds.lose = new Audio(generateSound(120, 0.4, 'sine')); // Low thud instead of buzz
-        sounds.levelComplete = new Audio(generateSound(523.25, 0.4, 'sine')); // C5 (Do) - Pleasant chime
-        sounds.win = new Audio(generateSound(783.99, 0.5, 'sine')); // G5 (So) - Happy but round
+        // "Bubble" / "Drop" sound for eating: Sine wave sweep from 600Hz down to 300Hz quickly
+        sounds.eat = new Audio(generateSound(600, 0.1, 'sine', 300));
+
+        // "Thud" sound for losing: Low sine wave from 100Hz to 60Hz
+        sounds.lose = new Audio(generateSound(100, 0.4, 'sine', 50));
+
+        // "Chime" for level complete: Higher pitch, longer decay
+        sounds.levelComplete = new Audio(generateSound(880, 0.6, 'sine', 880));
+
+        // "High Ding" for winning
+        sounds.win = new Audio(generateSound(1046, 0.8, 'sine', 1046));
+
 
 
         // Optional: Pre-load
