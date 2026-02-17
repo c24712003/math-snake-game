@@ -310,10 +310,11 @@ function startLevel(level) {
     // Level 1: ~10-20. Level 20: ~100+.
     state.targetValue = 10 + (state.level * 4) + Math.floor(Math.random() * 5);
 
+    // Spawn snake in the middle
     state.snake = [
-        { x: 5, y: 10 },
-        { x: 4, y: 10 },
-        { x: 3, y: 10 }
+        { x: Math.floor(CONFIG.cols / 2), y: Math.floor(CONFIG.rows / 2) },
+        { x: Math.floor(CONFIG.cols / 2) - 1, y: Math.floor(CONFIG.rows / 2) },
+        { x: Math.floor(CONFIG.cols / 2) - 2, y: Math.floor(CONFIG.rows / 2) }
     ];
     state.direction = { x: 1, y: 0 };
     state.nextDirection = { x: 1, y: 0 };
@@ -485,9 +486,9 @@ function handleDeath() {
     } else {
         // Reset Logic
         state.snake = [
-            { x: 5, y: 10 },
-            { x: 4, y: 10 },
-            { x: 3, y: 10 }
+            { x: Math.floor(CONFIG.cols / 2), y: Math.floor(CONFIG.rows / 2) },
+            { x: Math.floor(CONFIG.cols / 2) - 1, y: Math.floor(CONFIG.rows / 2) },
+            { x: Math.floor(CONFIG.cols / 2) - 2, y: Math.floor(CONFIG.rows / 2) }
         ];
         state.direction = { x: 1, y: 0 };
         state.nextDirection = { x: 1, y: 0 };
