@@ -10,7 +10,7 @@ const CONFIG = {
         wall: '#94a3b8', // Gray
         text: '#1e293b' // Dark Text
     },
-    baseSpeed: 150,
+    baseSpeed: 400,
     speedDecrementPerLevel: 5,
     minSpeed: 60
 };
@@ -121,18 +121,58 @@ const ui = {
 
 // --- Initialization ---
 function init() {
-    // Responsive Grid Configuration for Mobile
-    if (window.innerWidth < 850) {
-        // Less columns = Larger cells on screen
-        CONFIG.cols = 10;
-        CONFIG.rows = 15;
+    // Responsive Grid Configuration
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    if (width < 850) {
+        // Dynamic Mobile Adjustment
+        const hudHeight = 140; // Approximate HUD height
+        const padding = 20;    // Side padding
+
+        const availableW = width - padding;
+        const availableH = height - hudHeight - padding;
+
+        let targetSize = 40; // Desired cell size
+
+        // Determine number of columns and rows that fit
+        let cols = Math.floor(availableW / targetSize);
+        let rows = Math.floor(availableH / targetSize);
+
+        // Enforce Minimums for playability
+        if (cols < 9) cols = 9;
+        if (rows < 12) rows = 12;
+
+        // Recalculate grid size to fit the constrained count
+        const sizeW = Math.floor(availableW / cols);
+        const sizeH = Math.floor(availableH / rows);
+
+        // Use the smaller dimension to ensuring fitting both
+        CONFIG.gridSize = Math.min(sizeW, sizeH);
+
+        // Cap max size (e.g. tablet shouldn't have giant 100px cells)
+        if (CONFIG.gridSize > 45) CONFIG.gridSize = 45;
+
+        CONFIG.cols = cols;
+        CONFIG.rows = rows;
     } else {
         CONFIG.cols = 20;
         CONFIG.rows = 15;
+        // Default gridSize is already 40
     }
 
     canvas.width = CONFIG.cols * CONFIG.gridSize;
     canvas.height = CONFIG.rows * CONFIG.gridSize;
+
+    // Sync CSS Grid Background visual
+    const bgGrid = document.querySelector('.bg-grid');
+    if (bgGrid) {
+        bgGrid.style.backgroundSize = `${CONFIG.gridSize}px ${CONFIG.gridSize}px`;
+        bgGrid.style.backgroundImage = `
+            linear-gradient(var(--grid-color) 2px, transparent 2px),
+            linear-gradient(90deg, var(--grid-color) 2px, transparent 2px)
+        `;
+    }
 
     document.querySelectorAll('.grade-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -504,10 +544,10 @@ function createFloatingText(x, y, text) {
 function createElementExplosion(x, y, color) {
     for (let i = 0; i < 8; i++) {
         state.particles.push({
-            x: x + 20,
-            y: y + 20,
-            vx: (Math.random() - 0.5) * 10,
-            vy: (Math.random() - 0.5) * 10,
+            x: x + CONFIG.gridSize / 2,
+            y: y + CONFIG.gridSize / 2,
+            vx: (Math.random() - 0.5) * (CONFIG.gridSize / 4),
+            vy: (Math.random() - 0.5) * (CONFIG.gridSize / 4),
             life: 1.0,
             color: color
         });
@@ -519,8 +559,8 @@ function createConfetti() {
         state.particles.push({
             x: canvas.width / 2,
             y: canvas.height / 2,
-            vx: (Math.random() - 0.5) * 20,
-            vy: (Math.random() - 0.5) * 20,
+            vx: (Math.random() - 0.5) * (CONFIG.gridSize / 2),
+            vy: (Math.random() - 0.5) * (CONFIG.gridSize / 2),
             life: 2.0,
             color: `hsl(${Math.random() * 360}, 100%, 50%)`
         });
@@ -551,7 +591,8 @@ function drawParticles() {
         ctx.globalAlpha = p.life;
         ctx.fillStyle = p.color;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        const r = CONFIG.gridSize * 0.1;
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1.0;
     });
@@ -559,7 +600,8 @@ function drawParticles() {
     state.floatingTexts.forEach(ft => {
         ctx.globalAlpha = ft.life;
         ctx.fillStyle = '#1e293b'; // Dark text for floaters
-        ctx.font = '24px "Varela Round"';
+        const fontSize = Math.floor(CONFIG.gridSize * 0.6);
+        ctx.font = `${fontSize}px "Varela Round"`;
         ctx.textAlign = 'center';
         ctx.fillText(ft.text, ft.x, ft.y);
         ctx.globalAlpha = 1.0;
@@ -573,11 +615,20 @@ function draw() {
     // Draw Food
     state.foodItems.forEach(food => {
         ctx.fillStyle = food.color || CONFIG.colors.food;
-        drawRoundedRect(food.x * CONFIG.gridSize + 2, food.y * CONFIG.gridSize + 2, CONFIG.gridSize - 4, CONFIG.gridSize - 4, 8);
+        const padding = CONFIG.gridSize * 0.05;
+        const radius = CONFIG.gridSize * 0.2;
+        drawRoundedRect(
+            food.x * CONFIG.gridSize + padding,
+            food.y * CONFIG.gridSize + padding,
+            CONFIG.gridSize - (padding * 2),
+            CONFIG.gridSize - (padding * 2),
+            radius
+        );
 
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = '20px "Varela Round"';
+        const fontSize = Math.floor(CONFIG.gridSize * 0.5);
+        ctx.font = `${fontSize}px "Varela Round"`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(food.text, food.x * CONFIG.gridSize + CONFIG.gridSize / 2, food.y * CONFIG.gridSize + CONFIG.gridSize / 2);
@@ -586,18 +637,30 @@ function draw() {
     // Draw Snake
     state.snake.forEach((segment, index) => {
         ctx.fillStyle = index === 0 ? CONFIG.colors.snakeHead : CONFIG.colors.snakeBody;
-        drawRoundedRect(segment.x * CONFIG.gridSize + 1, segment.y * CONFIG.gridSize + 1, CONFIG.gridSize - 2, CONFIG.gridSize - 2, 6);
+        const padding = CONFIG.gridSize * 0.025;
+        const radius = CONFIG.gridSize * 0.15;
+
+        drawRoundedRect(
+            segment.x * CONFIG.gridSize + padding,
+            segment.y * CONFIG.gridSize + padding,
+            CONFIG.gridSize - (padding * 2),
+            CONFIG.gridSize - (padding * 2),
+            radius
+        );
 
         // Eyes for head
         if (index === 0) {
             ctx.fillStyle = 'white';
-            const eyeOffset = 8;
-            const eyeSize = 4;
+            const eyeOffset = CONFIG.gridSize * 0.2;
+            const eyeSize = CONFIG.gridSize * 0.1;
+
             // Adjust eye position based on direction
-            let lex = segment.x * CONFIG.gridSize + 10;
-            let ley = segment.y * CONFIG.gridSize + 10;
-            let rex = segment.x * CONFIG.gridSize + 30;
-            let rey = segment.y * CONFIG.gridSize + 10;
+            // Simple logic: fixed relative positions
+            let lex = segment.x * CONFIG.gridSize + CONFIG.gridSize * 0.25;
+            let ley = segment.y * CONFIG.gridSize + CONFIG.gridSize * 0.25;
+            let rex = segment.x * CONFIG.gridSize + CONFIG.gridSize * 0.75;
+            let rey = segment.y * CONFIG.gridSize + CONFIG.gridSize * 0.25;
+
             // rudimentary logic, can be improved
             ctx.beginPath(); ctx.arc(lex, ley, eyeSize, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.arc(rex, rey, eyeSize, 0, Math.PI * 2); ctx.fill();
