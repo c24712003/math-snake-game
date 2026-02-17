@@ -37,80 +37,111 @@ const state = {
     isMuted: false // Mute state
 };
 
-// --- Audio System (Web Audio API) ---
-let audioCtx = null;
+// --- Audio System (Fallback: Generated WAV Blobs) ---
+// This method bypasses Web Audio API restrictions by creating standard Audio elements with generated WAV files.
 
-function getAudioContext() {
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const sounds = {
+    eat: null,
+    win: null,
+    lose: null,
+    levelComplete: null
+};
+
+// Helper: Generate WAV Data URI
+function generateSound(freq, duration, type = 'sine') {
+    const sampleRate = 44100;
+    const numSamples = duration * sampleRate;
+    const buffer = new ArrayBuffer(44 + numSamples * 2);
+    const view = new DataView(buffer);
+
+    const writeString = (view, offset, string) => {
+        for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
+    };
+
+    // RIFF Chunk
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + numSamples * 2, true);
+    writeString(view, 8, 'WAVE');
+
+    // fmt Chunk
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, 1, true); // Mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true); // 16-bit
+
+    // data Chunk
+    writeString(view, 36, 'data');
+    view.setUint32(40, numSamples * 2, true);
+
+    // Write PCM samples
+    const volume = 0.3;
+    for (let i = 0; i < numSamples; i++) {
+        const t = i / sampleRate;
+        let sample = 0;
+
+        // Simple waveform generation
+        if (type === 'square') {
+            sample = Math.sin(2 * Math.PI * freq * t) > 0 ? 1 : -1;
+        } else if (type === 'sawtooth') {
+            sample = 2 * (t * freq - Math.floor(t * freq + 0.5));
+        } else {
+            // Sine
+            sample = Math.sin(2 * Math.PI * freq * t);
+        }
+
+        // Apply tiny envelope to prevent popping
+        if (i < 1000) sample *= (i / 1000);
+        if (i > numSamples - 1000) sample *= ((numSamples - i) / 1000);
+
+        sample *= volume;
+        view.setInt16(44 + i * 2, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
     }
-    // Check if suspended and resume if needed (must be in user gesture)
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
+
+    const blob = new Blob([view], { type: 'audio/wav' });
+    return URL.createObjectURL(blob);
+}
+
+// Pre-generate Sounds
+function initAudio() {
+    try {
+        sounds.eat = new Audio(generateSound(880, 0.1, 'sine')); // High beep
+        sounds.lose = new Audio(generateSound(150, 0.5, 'sawtooth')); // Low buzz
+        sounds.levelComplete = new Audio(generateSound(500, 0.3, 'square')); // Medium chime
+        sounds.win = new Audio(generateSound(600, 0.4, 'sine'));
+
+        // Optional: Pre-load
+        Object.values(sounds).forEach(s => {
+            if (s) s.load();
+        });
+    } catch (e) {
+        console.error("Audio generation failed", e);
     }
-    return audioCtx;
 }
 
 function playSound(type) {
     if (state.isMuted) return;
 
-    // Ensure context exists and is running
-    const ctx = getAudioContext();
-    if (!ctx) return;
-
-    const osc = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-
-    osc.connect(gainNode);
-    gainNode.connect(ctx.destination);
-
-    const now = ctx.currentTime;
-
-    switch (type) {
-        case 'eat':
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(600, now);
-            osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
-            gainNode.gain.setValueAtTime(0.3, now);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-            osc.start(now);
-            osc.stop(now + 0.1);
-            break;
-        case 'win':
-            osc.type = 'triangle';
-            // Arpeggio
-            [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
-                const t = now + i * 0.1;
-                const o = ctx.createOscillator();
-                const g = ctx.createGain();
-                o.type = 'square';
-                o.frequency.value = freq;
-                o.connect(g);
-                g.connect(ctx.destination);
-                g.gain.setValueAtTime(0.1, t);
-                g.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
-                o.start(t);
-                o.stop(t + 0.1);
-            });
-            break;
-        case 'levelComplete':
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(400, now);
-            osc.frequency.linearRampToValueAtTime(800, now + 0.2);
-            gainNode.gain.setValueAtTime(0.2, now);
-            gainNode.gain.linearRampToValueAtTime(0, now + 0.2);
-            osc.start(now);
-            osc.stop(now + 0.2);
-            break;
-        case 'lose':
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(200, now);
-            osc.frequency.exponentialRampToValueAtTime(50, now + 0.5);
-            gainNode.gain.setValueAtTime(0.3, now);
-            gainNode.gain.linearRampToValueAtTime(0.01, now + 0.5);
-            osc.start(now);
-            osc.stop(now + 0.5);
-            break;
+    try {
+        const sound = sounds[type];
+        if (sound) {
+            sound.currentTime = 0; // Rewind
+            const playPromise = sound.play();
+            // Handle autoplay policies
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    // Auto-play was prevented.
+                    // This is expected on mobile if not triggered by event.
+                    // But since we trigger this in game logic often started by user, it might work.
+                    console.log("Audio play prevented:", error);
+                });
+            }
+        }
+    } catch (e) {
+        console.warn("Sound play error", e);
     }
 }
 
@@ -216,33 +247,28 @@ function init() {
         window.visualViewport.addEventListener('resize', onResize);
     }
 
-    // Resume Audio Context on first interaction (Mobile Requirement)
-    // Resume Audio Context on first interaction (Mobile Requirement)
-    const resumeAudio = () => {
-        const ctx = getAudioContext();
-        if (!ctx) return;
+    // Initialize Generated Audio
+    initAudio();
 
-        // iOS/Mobile Unlock Hack: Play a silent buffer
-        // Just calling ctx.resume() is sometimes not enough on strict browsers
-        const buffer = ctx.createBuffer(1, 1, 22050);
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(ctx.destination);
-        source.start(0);
-
-        if (ctx.state === 'suspended') {
-            ctx.resume();
+    // Resume/Unlock Audio on first interaction (Mobile Requirement)
+    const unlockAudio = () => {
+        // Try to play and immediately pause a sound to unlock the audio engine
+        if (sounds.eat) {
+            sounds.eat.play().then(() => {
+                sounds.eat.pause();
+                sounds.eat.currentTime = 0;
+            }).catch(() => { });
         }
     };
-    // Bind to multiple interaction types to catch the earliest possible unlock
-    document.addEventListener('click', resumeAudio, { once: true });
-    document.addEventListener('touchstart', resumeAudio, { once: true });
-    document.addEventListener('keydown', resumeAudio, { once: true });
+    // Bind to multiple interaction types
+    document.addEventListener('click', unlockAudio, { once: true });
+    document.addEventListener('touchstart', unlockAudio, { once: true });
+    document.addEventListener('keydown', unlockAudio, { once: true });
 
     // UI Event Listeners
     document.querySelectorAll('.grade-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            resumeAudio(); // Ensure resume on start
+            unlockAudio();
             startGame(e.target.dataset.grade);
         });
     });
