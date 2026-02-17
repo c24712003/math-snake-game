@@ -38,19 +38,33 @@ const state = {
 };
 
 // --- Audio System (Web Audio API) ---
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let audioCtx = null;
+
+function getAudioContext() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    // Check if suspended and resume if needed (must be in user gesture)
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    return audioCtx;
+}
 
 function playSound(type) {
     if (state.isMuted) return;
-    if (audioCtx.state === 'suspended') audioCtx.resume();
 
-    const osc = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
+    // Ensure context exists and is running
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
 
     osc.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
+    gainNode.connect(ctx.destination);
 
-    const now = audioCtx.currentTime;
+    const now = ctx.currentTime;
 
     switch (type) {
         case 'eat':
@@ -67,12 +81,12 @@ function playSound(type) {
             // Arpeggio
             [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
                 const t = now + i * 0.1;
-                const o = audioCtx.createOscillator();
-                const g = audioCtx.createGain();
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
                 o.type = 'square';
                 o.frequency.value = freq;
                 o.connect(g);
-                g.connect(audioCtx.destination);
+                g.connect(ctx.destination);
                 g.gain.setValueAtTime(0.1, t);
                 g.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
                 o.start(t);
@@ -204,8 +218,9 @@ function init() {
 
     // Resume Audio Context on first interaction (Mobile Requirement)
     const resumeAudio = () => {
-        if (audioCtx.state === 'suspended') {
-            audioCtx.resume();
+        const ctx = getAudioContext();
+        if (ctx && ctx.state === 'suspended') {
+            ctx.resume();
         }
     };
     document.addEventListener('click', resumeAudio, { once: true });
