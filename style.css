@@ -411,13 +411,18 @@ canvas {
         align-items: flex-start;
         padding: 0;
         height: 100vh;
+        height: 100dvh;
+        /* Dynamic Viewport Height for mobile browsers */
         overflow: hidden;
         background-color: #fff;
+        overscroll-behavior: none;
+        /* Prevent scroll bouncing */
     }
 
     #game-container {
         width: 100vw;
         height: 100vh;
+        height: 100dvh;
         max-width: none;
         max-height: none;
         border: none;
@@ -563,9 +568,9 @@ canvas {
     /* Game Area scaling */
     #game-area {
         flex: 1;
-        /* Take available space */
+        /* Take remaining space */
         min-height: 0;
-        /* Allow shrinking */
+        /* Important for flex items to shrink */
         width: 100%;
         display: flex;
         justify-content: center;
@@ -573,6 +578,8 @@ canvas {
         background: #f8fafc;
         padding: 5px;
         position: relative;
+        /* Safe Area for notched phones */
+        padding-bottom: env(safe-area-inset-bottom, 20px);
     }
 
     canvas {

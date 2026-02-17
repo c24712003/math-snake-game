@@ -222,9 +222,15 @@ function init() {
     let touchStartY = 0;
 
     document.addEventListener('touchstart', (e) => {
+        // Prevent default scrolling on game area
+        if (e.target.closest('#game-area') || e.target.closest('#mobile-controls') || e.target.closest('.overlay')) {
+            // Only prevent default if not a button/input
+            if (e.target.tagName !== 'BUTTON') {
+                e.preventDefault();
+            }
+        }
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
-        // Don't prevent default here to allow clicking buttons
     }, { passive: false });
 
     document.addEventListener('touchmove', (e) => {
