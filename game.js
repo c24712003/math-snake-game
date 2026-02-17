@@ -120,77 +120,100 @@ const ui = {
 };
 
 // --- Initialization ---
+// --- Initialization ---
 function init() {
-    // Responsive Grid Configuration
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+    // 1. Dynamic Grid Calculation
+    function calculateGrid() {
+        // Use Visual Viewport if available (mobile safe)
+        const width = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+        const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
 
-    if (width < 850) {
-        // Dynamic Mobile Adjustment
-        const hudHeight = 140; // Approximate HUD height
-        const padding = 20;    // Side padding
+        if (width < 850) {
+            // Mobile Adjustment
+            const hudEl = document.getElementById('hud');
+            // Estimate HUD height if not visible (padding + 2 rows approx 120-140) + safe area
+            const hudHeight = (hudEl && hudEl.offsetHeight > 0) ? hudEl.offsetHeight : 160;
+            const safeAreaBuffer = 40;
+            const horizontalPadding = 20;
 
-        const availableW = width - padding;
-        const availableH = height - hudHeight - padding;
+            const availableW = width - horizontalPadding;
+            const availableH = height - hudHeight - safeAreaBuffer;
 
-        let targetSize = 40; // Desired cell size
+            let targetSize = 40;
 
-        // Determine number of columns and rows that fit
-        let cols = Math.floor(availableW / targetSize);
-        let rows = Math.floor(availableH / targetSize);
+            // Determine cols/rows
+            let cols = Math.floor(availableW / targetSize);
+            let rows = Math.floor(availableH / targetSize);
 
-        // Enforce Minimums for playability
-        if (cols < 9) cols = 9;
-        if (rows < 12) rows = 12;
+            // Min constraints
+            if (cols < 8) cols = 8;
+            if (rows < 10) rows = 10;
 
-        // Recalculate grid size to fit the constrained count
-        const sizeW = Math.floor(availableW / cols);
-        const sizeH = Math.floor(availableH / rows);
+            // Recalculate grid size
+            const sizeW = Math.floor(availableW / cols);
+            const sizeH = Math.floor(availableH / rows);
 
-        // Use the smaller dimension to ensuring fitting both
-        CONFIG.gridSize = Math.min(sizeW, sizeH);
+            CONFIG.gridSize = Math.min(sizeW, sizeH);
+            if (CONFIG.gridSize > 45) CONFIG.gridSize = 45;
 
-        // Cap max size (e.g. tablet shouldn't have giant 100px cells)
-        if (CONFIG.gridSize > 45) CONFIG.gridSize = 45;
+            CONFIG.cols = cols;
+            CONFIG.rows = rows;
+        } else {
+            CONFIG.cols = 20;
+            CONFIG.rows = 15;
+            CONFIG.gridSize = 40;
+        }
 
-        CONFIG.cols = cols;
-        CONFIG.rows = rows;
-    } else {
-        CONFIG.cols = 20;
-        CONFIG.rows = 15;
-        // Default gridSize is already 40
+        canvas.width = CONFIG.cols * CONFIG.gridSize;
+        canvas.height = CONFIG.rows * CONFIG.gridSize;
+
+        // Sync CSS Grid Background
+        const bgGrid = document.querySelector('.bg-grid');
+        if (bgGrid) {
+            bgGrid.style.backgroundSize = `${CONFIG.gridSize}px ${CONFIG.gridSize}px`;
+            bgGrid.style.backgroundImage = `
+                linear-gradient(var(--grid-color) 2px, transparent 2px),
+                linear-gradient(90deg, var(--grid-color) 2px, transparent 2px)
+            `;
+        }
     }
 
-    canvas.width = CONFIG.cols * CONFIG.gridSize;
-    canvas.height = CONFIG.rows * CONFIG.gridSize;
+    // Initial Setup
+    calculateGrid();
 
-    // Sync CSS Grid Background visual
-    const bgGrid = document.querySelector('.bg-grid');
-    if (bgGrid) {
-        bgGrid.style.backgroundSize = `${CONFIG.gridSize}px ${CONFIG.gridSize}px`;
-        bgGrid.style.backgroundImage = `
-            linear-gradient(var(--grid-color) 2px, transparent 2px),
-            linear-gradient(90deg, var(--grid-color) 2px, transparent 2px)
-        `;
+    // Resize Handling
+    let resizeTimeout;
+    const onResize = () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            calculateGrid();
+            if (!state.isRunning) draw();
+        }, 100);
+    };
+    window.addEventListener('resize', onResize);
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', onResize);
     }
 
+    // UI Event Listeners
     document.querySelectorAll('.grade-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             startGame(e.target.dataset.grade);
         });
     });
 
-    document.addEventListener('keydown', handleInput);
     document.getElementById('next-level-btn').addEventListener('click', nextLevel);
     document.getElementById('restart-btn').addEventListener('click', restartGame);
 
-    // Mute Button Logic
     document.getElementById('mute-btn').addEventListener('click', () => {
         state.isMuted = !state.isMuted;
         document.getElementById('mute-icon').textContent = state.isMuted ? '🔇' : '🔊';
     });
 
-    // Touch Controls
+    // Input Listeners
+    document.addEventListener('keydown', handleInput);
+
+    // Touch / Swipe Controls
     const btnUp = document.getElementById('btn-up');
     const btnDown = document.getElementById('btn-down');
     const btnLeft = document.getElementById('btn-left');
@@ -198,9 +221,7 @@ function init() {
 
     const handleDirectionChange = (dx, dy) => {
         const newDir = { x: dx, y: dy };
-        // Prevent 180 degree turn
         if (state.direction.x + newDir.x === 0 && state.direction.y + newDir.y === 0) return;
-        // Prevent rapid double turns (simple check)
         if (state.direction.x + newDir.x !== 0 || state.direction.y + newDir.y !== 0) {
             state.nextDirection = newDir;
         }
@@ -217,14 +238,12 @@ function init() {
         bindBtn(btnRight, 1, 0);
     }
 
-    // Swipe Controls
     let touchStartX = 0;
     let touchStartY = 0;
 
     document.addEventListener('touchstart', (e) => {
         // Prevent default scrolling on game area
         if (e.target.closest('#game-area') || e.target.closest('#mobile-controls') || e.target.closest('.overlay')) {
-            // Only prevent default if not a button/input
             if (e.target.tagName !== 'BUTTON') {
                 e.preventDefault();
             }
@@ -234,7 +253,6 @@ function init() {
     }, { passive: false });
 
     document.addEventListener('touchmove', (e) => {
-        // Prevent scrolling if inside game area
         if (e.target.closest('#game-area') || e.target.closest('#mobile-controls')) {
             e.preventDefault();
         }
@@ -250,12 +268,10 @@ function init() {
         const dy = touchEndY - touchStartY;
 
         if (Math.abs(dx) > Math.abs(dy)) {
-            // Horizontal
-            if (Math.abs(dx) > 30) { // Threshold
+            if (Math.abs(dx) > 30) {
                 handleDirectionChange(dx > 0 ? 1 : -1, 0);
             }
         } else {
-            // Vertical
             if (Math.abs(dy) > 30) {
                 handleDirectionChange(0, dy > 0 ? 1 : -1);
             }

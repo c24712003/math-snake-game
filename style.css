@@ -420,9 +420,14 @@ canvas {
     }
 
     #game-container {
-        width: 100vw;
-        height: 100vh;
+        position: fixed;
+        /* Force to fit screen exactly, preventing scroll and bar overlap */
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        /* Fallback */
         height: 100dvh;
+        /* Dynamic Viewport Height */
         max-width: none;
         max-height: none;
         border: none;
@@ -432,7 +437,7 @@ canvas {
         flex-direction: column;
         background-color: #fff;
         overflow: hidden;
-        position: relative;
+        z-index: 100;
     }
 
     /* Compact HUD for Mobile */
